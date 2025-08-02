@@ -1,0 +1,431 @@
+openapi: 3.0.3
+info:
+  title: Chat Backend API
+  version: 1.0.0
+  description: |
+    REST chat API — create chats, post/poll messages, adjust per-chat settings,
+    and retrieve usage statistics.
+servers:
+  - url: https://api.example.com
+    description: Production
+  - url: http://localhost:8000
+    description: Local
+
+tags:
+  - name: chat
+    description: Chats and their messages and settings
+
+
+paths:
+
+  /chat:
+    post:
+      tags: [chat]
+      summary: Create a new chat session
+      security:
+        - bearerAuth: []
+      responses:
+        '201':
+          description: Chat created  # ← added
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  chat_id:
+                    type: integer
+
+    
+    get:
+      tags: [chat]
+      summary: List all chat IDs
+      responses:
+        '200':
+          description: Array of chat identifiers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: integer
+
+  /chat/{chat_id}:
+    get:
+      tags: [chat]
+      parameters:
+        - name: chat_id
+          in: path
+          required: true                 
+          schema:
+            type: integer
+          description: ID of the chat session
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+          description: Messages to skip (pagination)
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+          description: Max messages to return
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date-time
+          description: Usage report start time
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date-time
+          description: Usage report end time
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Aggregated chat data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatFull'
+    delete:
+      tags: [chat]
+      summary: Delete a chat session
+      parameters:
+        - $ref: '#/components/parameters/ChatId'  # ← add this
+      responses:
+        '204':
+          description: Deleted
+   
+  /chat/{chat_id}/messages:
+    parameters:
+      - $ref: '#/components/parameters/ChatId'
+    post:
+      tags: [messages]
+      summary: Post a new message to a chat
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NewMessageRequest'
+      security:
+        - bearerAuth: []
+      responses:
+        '201':
+          description: Message accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NewMessageResponse'
+
+    get:
+      tags: [messages]
+      summary: Paginated message history
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+        - name: since
+          in: query
+          schema:
+            type: string
+            format: date-time
+          description: Return messages created after this timestamp
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Messages (oldest → newest)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ChatMessage'
+
+  /chat/{chat_id}/messages/{message_id}:
+    parameters:
+      - $ref: '#/components/parameters/ChatId'
+      - name: message_id
+        in: path
+        required: true                 # ← added
+        schema:
+          type: integer
+    get:
+      tags: [messages]
+      summary: Fetch a single message with full logs
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Message details + logs
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatMessage'
+
+
+
+  /chat/{chat_id}/settings:
+    parameters:
+      - $ref: '#/components/parameters/ChatId'
+    get:
+      tags: [chat]
+      summary: Current settings for a chat
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Settings object
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatSettings'
+
+    patch:
+      tags: [chat]
+      summary: Update selected settings fields
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChatSettingsUpdate'
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Updated settings
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatSettings'
+
+
+
+  /chat/{chat_id}/usage:
+    parameters:
+      - $ref: '#/components/parameters/ChatId'
+    get:
+      tags: [chat]
+      summary: Usage & cost metrics for a chat
+      parameters:
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date-time
+          description: Start of reporting window
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date-time
+          description: End of reporting window
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Usage metrics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UsageMetrics'
+
+
+  /info/models:
+    get:
+      tags:
+        - info
+      summary: Retrieve model data.
+      responses:
+        '200':
+          description: Successful response with model data.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  models:
+                    type: array
+                    items:
+                      type: string
+                    description: List of available model names.
+                  defaults:
+                    type: object
+                    additionalProperties:
+                      type: string
+                    description: Default models for each functionality.
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  detail:
+                    type: string
+
+components:
+  
+  parameters:   
+    ChatId:
+      name: chat_id
+      in: path
+      required: true        
+      schema:
+        type: integer
+      description: Target chat identifier
+    Limit:
+      name: limit
+      in: query
+      schema:
+        type: integer
+        default: 50
+      description: Max items to return
+    Offset:
+      name: offset
+      in: query
+      schema:
+        type: integer
+        default: 0
+      description: Items to skip
+
+  schemas:
+
+  
+    ChatFull:
+      type: object
+      properties:
+        chat_id:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+        settings:
+          $ref: '#/components/schemas/ChatSettings'
+        messages:
+          type: array
+          items:
+            $ref: '#/components/schemas/ChatMessage'
+        usage:
+          $ref: '#/components/schemas/UsageMetrics'
+
+
+    NewMessageRequest:
+      type: object
+      properties:
+        message:
+          type: string
+        message_format:
+          type: string
+          default: text
+        config:
+          type: object
+          description: Per-message overrides (e.g., model_name, paca_config)
+          additionalProperties: true
+      additionalProperties: false
+
+    NewMessageResponse:
+      type: object
+      properties:
+        message_id:
+          type: integer
+        timestamp:
+          type: string
+          format: date-time
+
+    ChatMessage:
+      type: object
+      properties:
+        message_id:
+          type: integer
+        chat_id:
+          type: integer
+        user_id:
+          type: integer
+        user_name:
+          type: string
+        user_type:
+          type: string
+        message:
+          type: string
+        message_format:
+          type: string
+        message_transcription:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        logs:
+          type: object
+          description: Internal or debugging logs
+          additionalProperties: true
+        
+        total_cost:
+          type: number
+        voice_feature_cost:
+          type: number
+        voice_usage_duration:
+          type: number
+
+        step_context:
+          type: object
+          additionalProperties: true
+        diff_of_step_context:
+          type: string
+          description: shows how step context changed from previous messages
+        extracted_user_data:
+          type: object
+          additionalProperties: true
+        used_user_data:
+          type: object
+          additionalProperties: true
+        message_owner_emotional_state:
+          type: string
+        message_owner_mini_goal:
+          type: string
+        message_owner_medium_goal:
+          type: string
+
+    ChatSettings:
+      type: object
+      description: Arbitrary key-value pairs (e.g., system_prompt, default_model)
+      additionalProperties: true
+
+    ChatSettingsUpdate:
+      type: object
+      description: Partial update of settings
+      additionalProperties: true
+
+    UsageMetrics:
+      type: object
+      properties:
+        cost:
+          type: number
+          format: float
+        total_usage_time:
+          type: number
+          format: float
+        avg_response_time:
+          type: number
+          format: float
+        biggest_response_time:
+          type: number
+          format: float
+        shortest_response_time:
+          type: number
+          format: float
+        median_response_time:
+          type: number
+          format: float
+  
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+ 
