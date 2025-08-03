@@ -32,9 +32,10 @@ class JournalEntryPreview(BaseModel):
     mood: Optional[StrictStr] = Field(default=None, description="Emoji representing mood")
     timestamp: Optional[datetime] = Field(default=None, description="Entry timestamp")
     tags: Optional[List[StrictStr]] = Field(default=None, description="Entry tags")
+    insights: Optional[List[StrictStr]] = Field(default=None, description="AI-generated insights")
     hasAffirmation: Optional[StrictBool] = Field(default=None, description="Whether entry has affirmation", alias="hasAffirmation")
     hasScript: Optional[StrictBool] = Field(default=None, description="Whether entry has script", alias="hasScript")
-    __properties: ClassVar[List[str]] = ["id", "content", "mood", "timestamp", "tags", "hasAffirmation", "hasScript"]
+    __properties: ClassVar[List[str]] = ["id", "content", "mood", "timestamp", "tags", "insights", "hasAffirmation", "hasScript"]
 
     model_config = {
         "populate_by_name": True,
@@ -99,6 +100,11 @@ class JournalEntryPreview(BaseModel):
         if self.tags is None and "tags" in self.model_fields_set:
             _dict['tags'] = None
 
+        # set to None if insights (nullable) is None
+        # and model_fields_set contains the field
+        if self.insights is None and "insights" in self.model_fields_set:
+            _dict['insights'] = None
+
         # set to None if hasAffirmation (nullable) is None
         # and model_fields_set contains the field
         if self.hasAffirmation is None and "hasAffirmation" in self.model_fields_set:
@@ -126,6 +132,7 @@ class JournalEntryPreview(BaseModel):
             "mood": obj.get("mood"),
             "timestamp": obj.get("timestamp"),
             "tags": obj.get("tags"),
+            "insights": obj.get("insights"),
             "hasAffirmation": obj.get("hasAffirmation"),
             "hasScript": obj.get("hasScript")
         })

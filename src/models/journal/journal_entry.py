@@ -36,7 +36,9 @@ class JournalEntry(BaseModel):
     insights: Optional[List[StrictStr]] = Field(default=None, description="AI-generated insights")
     suggestionsAvailable: Optional[StrictBool] = Field(default=None, description="Whether suggestions are available", alias="suggestionsAvailable")
     requiresReprocessing: Optional[StrictBool] = Field(default=None, description="Whether entry requires reprocessing", alias="requiresReprocessing")
-    __properties: ClassVar[List[str]] = ["id", "userId", "content", "mood", "timestamp", "tags", "insights", "suggestionsAvailable", "requiresReprocessing"]
+    processed: Optional[StrictBool] = Field(default=None, description="Whether entry has been processed by AI")
+    processingStatus: Optional[StrictStr] = Field(default=None, description="Processing status", alias="processingStatus")
+    __properties: ClassVar[List[str]] = ["id", "userId", "content", "mood", "timestamp", "tags", "insights", "suggestionsAvailable", "requiresReprocessing", "processed", "processingStatus"]
 
     model_config = {
         "populate_by_name": True,
@@ -121,6 +123,16 @@ class JournalEntry(BaseModel):
         if self.requiresReprocessing is None and "requiresReprocessing" in self.model_fields_set:
             _dict['requiresReprocessing'] = None
 
+        # set to None if processed (nullable) is None
+        # and model_fields_set contains the field
+        if self.processed is None and "processed" in self.model_fields_set:
+            _dict['processed'] = None
+
+        # set to None if processingStatus (nullable) is None
+        # and model_fields_set contains the field
+        if self.processingStatus is None and "processingStatus" in self.model_fields_set:
+            _dict['processingStatus'] = None
+
         return _dict
 
     @classmethod
@@ -141,6 +153,8 @@ class JournalEntry(BaseModel):
             "tags": obj.get("tags"),
             "insights": obj.get("insights"),
             "suggestionsAvailable": obj.get("suggestionsAvailable"),
-            "requiresReprocessing": obj.get("requiresReprocessing")
+            "requiresReprocessing": obj.get("requiresReprocessing"),
+            "processed": obj.get("processed"),
+            "processingStatus": obj.get("processingStatus")
         })
         return _obj

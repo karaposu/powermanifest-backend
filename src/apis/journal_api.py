@@ -23,6 +23,7 @@ from fastapi import (  # noqa: F401
     Response,
     Security,
     status,
+    BackgroundTasks,
 )
 
 from models.extra_models import TokenModel  # noqa: F401
@@ -51,8 +52,6 @@ from security_api import get_token_bearerAuth
 from core.containers import Services
 from datetime import date
 from typing import Optional, List as ListType
-from typing_extensions import Annotated
-from pydantic import Field, StrictBool, StrictInt, StrictStr
 
 
 router = APIRouter()
@@ -78,6 +77,7 @@ def get_services(request: Request) -> Services:
     response_model_by_alias=True,
 )
 async def create_journal_entry(
+    background_tasks: BackgroundTasks,
     create_journal_entry_request: CreateJournalEntryRequest = Body(None),
     token_bearerAuth: TokenModel = Security(
         get_token_bearerAuth
@@ -94,7 +94,10 @@ async def create_journal_entry(
             content=create_journal_entry_request.content,
             mood=create_journal_entry_request.mood,
             timestamp=create_journal_entry_request.timestamp,
-            user_id=token_bearerAuth.sub
+            user_id=int(token_bearerAuth.sub),
+            auto_process=create_journal_entry_request.autoProcess if create_journal_entry_request.autoProcess is not None else True,
+            background_tasks=background_tasks,
+            services=services
         )
     except HTTPException:
         raise
@@ -114,10 +117,10 @@ async def create_journal_entry(
     response_model_by_alias=True,
 )
 async def get_journal_entries(
-    filter: Optional[StrictStr] = Query(None, description="Time-based filter", alias="filter"),
-    limit: Optional[StrictInt] = Query(20, description="Number of entries to return", alias="limit", le=100),
-    offset: Optional[StrictInt] = Query(0, description="Number of entries to skip", alias="offset", ge=0),
-    search: Optional[StrictStr] = Query(None, description="Search query for entry content"),
+    filter: Optional[str] = Query(None, description="Time-based filter", alias="filter"),
+    limit: int = Query(20, description="Number of entries to return", le=100),
+    offset: int = Query(0, description="Number of entries to skip", ge=0),
+    search: Optional[str] = Query(None, description="Search query for entry content"),
     token_bearerAuth: TokenModel = Security(
         get_token_bearerAuth
     ),
@@ -134,7 +137,7 @@ async def get_journal_entries(
             limit=limit,
             offset=offset,
             search=search,
-            user_id=token_bearerAuth.sub
+            user_id=int(token_bearerAuth.sub)
         )
     except HTTPException:
         raise
@@ -155,21 +158,21 @@ async def get_journal_entries(
     response_model_by_alias=True,
 )
 async def get_journal_entry(
-    entryId: StrictStr = Path(..., description=""),
+    entryId: str = Path(..., description=""),
     token_bearerAuth: TokenModel = Security(
         get_token_bearerAuth
     ),
     services: Services = Depends(get_services),
-) -> JournalEntryDetail:
+) -> JournalEntry:
     """Get a specific journal entry"""
     try:
         logger.debug("get_journal_entry is called")
         from impl.services.journal_service import JournalService
-        journal_service = JournalService(services.user_manager, services.db_session, services.openai_client)
+        journal_service = JournalService(dependencies=services)
         
         return journal_service.get_entry(
             entry_id=entryId,
-            user_id=token_bearerAuth.sub
+            user_id=int(token_bearerAuth.sub)
         )
     except HTTPException:
         raise
@@ -190,7 +193,7 @@ async def get_journal_entry(
     response_model_by_alias=True,
 )
 async def update_journal_entry(
-    entryId: StrictStr = Path(..., description=""),
+    entryId: str = Path(..., description=""),
     update_journal_entry_request: UpdateJournalEntryRequest = Body(None),
     token_bearerAuth: TokenModel = Security(
         get_token_bearerAuth
@@ -201,13 +204,13 @@ async def update_journal_entry(
     try:
         logger.debug("update_journal_entry is called")
         from impl.services.journal_service import JournalService
-        journal_service = JournalService(services.user_manager, services.db_session, services.openai_client)
+        journal_service = JournalService(dependencies=services)
         
         return journal_service.update_entry(
             entry_id=entryId,
             content=update_journal_entry_request.content,
             mood=update_journal_entry_request.mood,
-            user_id=token_bearerAuth.sub
+            user_id=int(token_bearerAuth.sub)
         )
     except HTTPException:
         raise
@@ -228,7 +231,7 @@ async def update_journal_entry(
     response_model_by_alias=True,
 )
 async def delete_journal_entry(
-    entryId: StrictStr = Path(..., description=""),
+    entryId: str = Path(..., description=""),
     token_bearerAuth: TokenModel = Security(
         get_token_bearerAuth
     ),
@@ -238,11 +241,11 @@ async def delete_journal_entry(
     try:
         logger.debug("delete_journal_entry is called")
         from impl.services.journal_service import JournalService
-        journal_service = JournalService(services.user_manager, services.db_session, services.openai_client)
+        journal_service = JournalService(dependencies=services)
         
         return journal_service.delete_entry(
             entry_id=entryId,
-            user_id=token_bearerAuth.sub
+            user_id=int(token_bearerAuth.sub)
         )
     except HTTPException:
         raise
@@ -263,7 +266,8 @@ async def delete_journal_entry(
     response_model_by_alias=True,
 )
 async def process_journal_entry(
-    entryId: StrictStr = Path(..., description=""),
+    background_tasks: BackgroundTasks,
+    entryId: str = Path(..., description=""),
     token_bearerAuth: TokenModel = Security(
         get_token_bearerAuth
     ),
@@ -273,11 +277,13 @@ async def process_journal_entry(
     try:
         logger.debug("process_journal_entry is called")
         from impl.services.journal_service import JournalService
-        journal_service = JournalService(services.user_manager, services.db_session, services.openai_client)
+        journal_service = JournalService(dependencies=services)
         
         return journal_service.process_entry(
             entry_id=entryId,
-            user_id=token_bearerAuth.sub
+            user_id=int(token_bearerAuth.sub),
+            background_tasks=background_tasks,
+            services=services
         )
     except HTTPException:
         raise
@@ -298,7 +304,7 @@ async def process_journal_entry(
     response_model_by_alias=True,
 )
 async def get_entry_suggestions(
-    entryId: StrictStr = Path(..., description=""),
+    entryId: str = Path(..., description=""),
     token_bearerAuth: TokenModel = Security(
         get_token_bearerAuth
     ),
@@ -308,11 +314,11 @@ async def get_entry_suggestions(
     try:
         logger.debug("get_entry_suggestions is called")
         from impl.services.journal_service import JournalService
-        journal_service = JournalService(services.user_manager, services.db_session, services.openai_client)
+        journal_service = JournalService(dependencies=services)
         
         return journal_service.get_suggestions(
             entry_id=entryId,
-            user_id=token_bearerAuth.sub
+            user_id=int(token_bearerAuth.sub)
         )
     except HTTPException:
         raise
@@ -333,7 +339,7 @@ async def get_entry_suggestions(
     response_model_by_alias=True,
 )
 async def create_affirmation_from_entry(
-    entryId: StrictStr = Path(..., description=""),
+    entryId: str = Path(..., description=""),
     create_affirmation_request: CreateAffirmationRequest = Body(None),
     token_bearerAuth: TokenModel = Security(
         get_token_bearerAuth
@@ -344,13 +350,13 @@ async def create_affirmation_from_entry(
     try:
         logger.debug("create_affirmation_from_entry is called")
         from impl.services.journal_service import JournalService
-        journal_service = JournalService(services.user_manager, services.db_session, services.openai_client)
+        journal_service = JournalService(dependencies=services)
         
         return journal_service.create_affirmation_from_entry(
             entry_id=entryId,
             style=create_affirmation_request.style,
             tone=create_affirmation_request.tone,
-            user_id=token_bearerAuth.sub
+            user_id=int(token_bearerAuth.sub)
         )
     except HTTPException:
         raise
@@ -371,7 +377,7 @@ async def create_affirmation_from_entry(
     response_model_by_alias=True,
 )
 async def create_script_from_entry(
-    entryId: StrictStr = Path(..., description=""),
+    entryId: str = Path(..., description=""),
     create_script_request: CreateScriptRequest = Body(None),
     token_bearerAuth: TokenModel = Security(
         get_token_bearerAuth
@@ -382,13 +388,13 @@ async def create_script_from_entry(
     try:
         logger.debug("create_script_from_entry is called")
         from impl.services.journal_service import JournalService
-        journal_service = JournalService(services.user_manager, services.db_session, services.openai_client)
+        journal_service = JournalService(dependencies=services)
         
         return journal_service.create_script_from_entry(
             entry_id=entryId,
             duration=create_script_request.duration,
             type=create_script_request.type,
-            user_id=token_bearerAuth.sub
+            user_id=int(token_bearerAuth.sub)
         )
     except HTTPException:
         raise
@@ -409,7 +415,7 @@ async def create_script_from_entry(
     response_model_by_alias=True,
 )
 async def start_coach_session_from_entry(
-    entryId: StrictStr = Path(..., description=""),
+    entryId: str = Path(..., description=""),
     token_bearerAuth: TokenModel = Security(
         get_token_bearerAuth
     ),
@@ -419,11 +425,11 @@ async def start_coach_session_from_entry(
     try:
         logger.debug("start_coach_session_from_entry is called")
         from impl.services.journal_service import JournalService
-        journal_service = JournalService(services.user_manager, services.db_session, services.openai_client)
+        journal_service = JournalService(dependencies=services)
         
         return journal_service.start_coach_session_from_entry(
             entry_id=entryId,
-            user_id=token_bearerAuth.sub
+            user_id=int(token_bearerAuth.sub)
         )
     except HTTPException:
         raise
@@ -443,7 +449,7 @@ async def start_coach_session_from_entry(
     response_model_by_alias=True,
 )
 async def get_journal_stats(
-    period: Optional[StrictStr] = Query("month", description="Time period", alias="period"),
+    period: Optional[str] = Query("month", description="Time period", alias="period"),
     token_bearerAuth: TokenModel = Security(
         get_token_bearerAuth
     ),
@@ -453,11 +459,11 @@ async def get_journal_stats(
     try:
         logger.debug("get_journal_stats is called")
         from impl.services.journal_service import JournalService
-        journal_service = JournalService(services.user_manager, services.db_session, services.openai_client)
+        journal_service = JournalService(dependencies=services)
         
         return journal_service.get_stats(
             period=period,
-            user_id=token_bearerAuth.sub
+            user_id=int(token_bearerAuth.sub)
         )
     except HTTPException:
         raise
@@ -477,12 +483,12 @@ async def get_journal_stats(
     response_model_by_alias=True,
 )
 async def search_journal_entries(
-    q: StrictStr = Query(..., description="Search query"),
-    mood: Optional[StrictStr] = Query(None, description="Filter by mood"),
-    tags: Optional[ListType[StrictStr]] = Query(None, description="Filter by tags"),
+    q: str = Query(..., description="Search query"),
+    mood: Optional[str] = Query(None, description="Filter by mood"),
+    tags: Optional[ListType[str]] = Query(None, description="Filter by tags"),
     dateFrom: Optional[date] = Query(None, description="Start date", alias="dateFrom"),
     dateTo: Optional[date] = Query(None, description="End date", alias="dateTo"),
-    limit: Optional[StrictInt] = Query(20, description="Number of results"),
+    limit: Optional[int] = Query(20, description="Number of results"),
     token_bearerAuth: TokenModel = Security(
         get_token_bearerAuth
     ),
@@ -492,7 +498,7 @@ async def search_journal_entries(
     try:
         logger.debug("search_journal_entries is called")
         from impl.services.journal_service import JournalService
-        journal_service = JournalService(services.user_manager, services.db_session, services.openai_client)
+        journal_service = JournalService(dependencies=services)
         
         return journal_service.search_entries(
             query=q,
@@ -501,7 +507,7 @@ async def search_journal_entries(
             date_from=dateFrom,
             date_to=dateTo,
             limit=limit,
-            user_id=token_bearerAuth.sub
+            user_id=int(token_bearerAuth.sub)
         )
     except HTTPException:
         raise
@@ -530,7 +536,7 @@ async def get_journal_patterns(
     try:
         logger.debug("get_journal_patterns is called")
         from impl.services.journal_service import JournalService
-        journal_service = JournalService(services.user_manager, services.db_session, services.openai_client)
+        journal_service = JournalService(dependencies=services)
         
         return journal_service.get_patterns(user_id=token_bearerAuth.sub)
     except HTTPException:
@@ -551,7 +557,7 @@ async def get_journal_patterns(
     response_model_by_alias=True,
 )
 async def export_journal_entries(
-    format: StrictStr = Query(..., description="Export format"),
+    format: str = Query(..., description="Export format"),
     dateFrom: Optional[date] = Query(None, description="Start date", alias="dateFrom"),
     dateTo: Optional[date] = Query(None, description="End date", alias="dateTo"),
     token_bearerAuth: TokenModel = Security(
@@ -563,13 +569,13 @@ async def export_journal_entries(
     try:
         logger.debug("export_journal_entries is called")
         from impl.services.journal_service import JournalService
-        journal_service = JournalService(services.user_manager, services.db_session, services.openai_client)
+        journal_service = JournalService(dependencies=services)
         
         return journal_service.export_entries(
             format=format,
             date_from=dateFrom,
             date_to=dateTo,
-            user_id=token_bearerAuth.sub
+            user_id=int(token_bearerAuth.sub)
         )
     except HTTPException:
         raise
@@ -599,13 +605,13 @@ async def batch_tag_management(
     try:
         logger.debug("batch_tag_management is called")
         from impl.services.journal_service import JournalService
-        journal_service = JournalService(services.user_manager, services.db_session, services.openai_client)
+        journal_service = JournalService(dependencies=services)
         
         return journal_service.batch_tag_management(
             action=batch_tag_request.action,
             entry_ids=batch_tag_request.entryIds,
             tags=batch_tag_request.tags,
-            user_id=token_bearerAuth.sub
+            user_id=int(token_bearerAuth.sub)
         )
     except HTTPException:
         raise

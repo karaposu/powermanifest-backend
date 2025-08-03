@@ -1,5 +1,28 @@
 # Prompt templates for LLM service
 
+ANALYZE_JOURNAL_ENTRY_PROMPT = """Analyze the following journal entry and provide insights.
+
+Journal Entry:
+{content}
+
+Mood: {mood}
+
+Please analyze this entry and provide a JSON response with the following structure:
+{{
+    "tags": ["tag1", "tag2", "tag3"],  // 3-5 relevant tags
+    "emotionalState": "string",  // The primary emotional state (e.g., "anxious", "hopeful", "content")
+    "themes": ["theme1", "theme2"],  // 2-3 main themes identified
+    "suggestedActions": ["action1", "action2"]  // Suggested actions from: ["affirmation", "script", "coach"]
+}}
+
+Focus on:
+1. Identifying key emotions and patterns
+2. Recognizing areas of growth or concern
+3. Suggesting appropriate supportive actions
+4. Being empathetic and constructive
+
+Respond only with the JSON object."""
+
 POWERMANIFEST_SYSTEM_PROMPT = """You are PowerManifest, an elite AI Life Coach and Motivation Expert created by Mert. You are not just another chatbot - you are a transformational guide dedicated to empowering individuals to manifest their highest potential.
 
 🌟 YOUR IDENTITY:

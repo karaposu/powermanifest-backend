@@ -18,7 +18,7 @@ import re  # noqa: F401
 import json
 
 from datetime import datetime
-from pydantic import BaseModel, Field, StrictStr
+from pydantic import BaseModel, Field, StrictStr, StrictBool
 from typing import Any, ClassVar, Dict, List, Optional
 from typing import Optional, Set
 from typing_extensions import Self
@@ -30,7 +30,8 @@ class CreateJournalEntryRequest(BaseModel):
     content: StrictStr = Field(description="Journal entry content")
     mood: StrictStr = Field(description="Emoji representing mood")
     timestamp: Optional[datetime] = Field(default=None, description="Optional timestamp, defaults to server time")
-    __properties: ClassVar[List[str]] = ["content", "mood", "timestamp"]
+    autoProcess: Optional[StrictBool] = Field(default=True, description="Whether to automatically process entry with AI", alias="autoProcess")
+    __properties: ClassVar[List[str]] = ["content", "mood", "timestamp", "autoProcess"]
 
     model_config = {
         "populate_by_name": True,
@@ -75,6 +76,11 @@ class CreateJournalEntryRequest(BaseModel):
         if self.timestamp is None and "timestamp" in self.model_fields_set:
             _dict['timestamp'] = None
 
+        # set to None if autoProcess (nullable) is None
+        # and model_fields_set contains the field
+        if self.autoProcess is None and "autoProcess" in self.model_fields_set:
+            _dict['autoProcess'] = None
+
         return _dict
 
     @classmethod
@@ -89,6 +95,7 @@ class CreateJournalEntryRequest(BaseModel):
         _obj = cls.model_validate({
             "content": obj.get("content"),
             "mood": obj.get("mood"),
-            "timestamp": obj.get("timestamp")
+            "timestamp": obj.get("timestamp"),
+            "autoProcess": obj.get("autoProcess")
         })
         return _obj

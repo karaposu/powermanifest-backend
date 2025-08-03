@@ -109,6 +109,48 @@ class MyLLMService(BaseLLMService):
         result = self.execute_generation(generation_request)
         return result
     
+    def analyze_journal_entry(self, 
+                            content: str,
+                            mood: str,
+                            model: Optional[str] = None) -> GenerationResult:
+        """
+        Analyze a journal entry to extract insights, tags, and suggestions.
+        
+        Args:
+            content: The journal entry content
+            mood: The mood emoji/indicator
+            model: LLM model to use (default: gpt-4o-mini)
+            
+        Returns:
+            GenerationResult containing analysis with tags, themes, emotional state, and suggestions
+        """
+        
+        user_prompt = prompts.ANALYZE_JOURNAL_ENTRY_PROMPT.format(
+            content=content,
+            mood=mood
+        )
+        
+        if model is None:
+            model = "gpt-4o-mini"
+        
+        pipeline_config = [
+            {
+                "type": "ConvertToDict",
+                "params": {},
+            }
+        ]
+        
+        generation_request = GenerationRequest(
+            user_prompt=user_prompt,
+            model=model,
+            output_type="json",
+            operation_name="analyze_journal_entry",
+            pipeline_config=pipeline_config
+        )
+        
+        result = self.execute_generation(generation_request)
+        return result
+    
 
 
    

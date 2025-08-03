@@ -22,6 +22,8 @@ class JournalEntry(Base):
     # AI-generated fields
     tags = Column(JSON, default=list)
     insights = Column(JSON, default=list)
+    processed = Column(Boolean, default=False, nullable=False)
+    processing_status = Column(String(20), default='pending', nullable=False)  # pending, processing, completed, failed
     
     # Soft delete
     is_deleted = Column(Boolean, default=False, nullable=False)
