@@ -17,18 +17,19 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, Field, StrictStr
+from pydantic import BaseModel, Field
 from typing import Any, ClassVar, Dict, List, Optional
 from typing import Optional, Set
 from typing_extensions import Self
 
-class UpdateJournalEntryRequest(BaseModel):
+class JournalPatterns(BaseModel):
     """
-    UpdateJournalEntryRequest
+    JournalPatterns
     """  # noqa: E501
-    content: Optional[StrictStr] = Field(default=None, description="Updated journal entry content")
-    mood: Optional[StrictStr] = Field(default=None, description="Updated emoji representing mood")
-    __properties: ClassVar[List[str]] = ["content", "mood"]
+    recurringThemes: Optional[List[Dict[str, Any]]] = Field(default=None, description="Recurring themes analysis", alias="recurringThemes")
+    emotionalPatterns: Optional[List[Dict[str, Any]]] = Field(default=None, description="Emotional patterns analysis", alias="emotionalPatterns")
+    breakthroughMoments: Optional[List[Dict[str, Any]]] = Field(default=None, description="Breakthrough moments", alias="breakthroughMoments")
+    __properties: ClassVar[List[str]] = ["recurringThemes", "emotionalPatterns", "breakthroughMoments"]
 
     model_config = {
         "populate_by_name": True,
@@ -47,7 +48,7 @@ class UpdateJournalEntryRequest(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of UpdateJournalEntryRequest from a JSON string"""
+        """Create an instance of JournalPatterns from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -68,21 +69,26 @@ class UpdateJournalEntryRequest(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
-        # set to None if content (nullable) is None
+        # set to None if recurringThemes (nullable) is None
         # and model_fields_set contains the field
-        if self.content is None and "content" in self.model_fields_set:
-            _dict['content'] = None
+        if self.recurringThemes is None and "recurringThemes" in self.model_fields_set:
+            _dict['recurringThemes'] = None
 
-        # set to None if mood (nullable) is None
+        # set to None if emotionalPatterns (nullable) is None
         # and model_fields_set contains the field
-        if self.mood is None and "mood" in self.model_fields_set:
-            _dict['mood'] = None
+        if self.emotionalPatterns is None and "emotionalPatterns" in self.model_fields_set:
+            _dict['emotionalPatterns'] = None
+
+        # set to None if breakthroughMoments (nullable) is None
+        # and model_fields_set contains the field
+        if self.breakthroughMoments is None and "breakthroughMoments" in self.model_fields_set:
+            _dict['breakthroughMoments'] = None
 
         return _dict
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of UpdateJournalEntryRequest from a dict"""
+        """Create an instance of JournalPatterns from a dict"""
         if obj is None:
             return None
 
@@ -90,7 +96,8 @@ class UpdateJournalEntryRequest(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "content": obj.get("content"),
-            "mood": obj.get("mood")
+            "recurringThemes": obj.get("recurringThemes"),
+            "emotionalPatterns": obj.get("emotionalPatterns"),
+            "breakthroughMoments": obj.get("breakthroughMoments")
         })
         return _obj

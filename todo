@@ -1,0 +1,8 @@
+1. make chat chat id messages endpoint works in a blocking way, Make it return request taken immediately instead so it is not blocking 
+
+2. search  chat chat id messages endpoint to use websocket for faster response
+
+3. context based affirmation generation, use chat history as a context and ask ai to generate affirmations using it
+
+4. 
+

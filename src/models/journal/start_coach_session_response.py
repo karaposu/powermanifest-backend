@@ -22,13 +22,14 @@ from typing import Any, ClassVar, Dict, List, Optional
 from typing import Optional, Set
 from typing_extensions import Self
 
-class UpdateJournalEntryRequest(BaseModel):
+class StartCoachSessionResponse(BaseModel):
     """
-    UpdateJournalEntryRequest
+    StartCoachSessionResponse
     """  # noqa: E501
-    content: Optional[StrictStr] = Field(default=None, description="Updated journal entry content")
-    mood: Optional[StrictStr] = Field(default=None, description="Updated emoji representing mood")
-    __properties: ClassVar[List[str]] = ["content", "mood"]
+    sessionId: Optional[StrictStr] = Field(default=None, description="Coach session ID", alias="sessionId")
+    context: Optional[StrictStr] = Field(default=None, description="AI-prepared context from journal entry")
+    suggestedQuestions: Optional[List[StrictStr]] = Field(default=None, description="Suggested questions to ask", alias="suggestedQuestions")
+    __properties: ClassVar[List[str]] = ["sessionId", "context", "suggestedQuestions"]
 
     model_config = {
         "populate_by_name": True,
@@ -47,7 +48,7 @@ class UpdateJournalEntryRequest(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of UpdateJournalEntryRequest from a JSON string"""
+        """Create an instance of StartCoachSessionResponse from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -68,21 +69,26 @@ class UpdateJournalEntryRequest(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
-        # set to None if content (nullable) is None
+        # set to None if sessionId (nullable) is None
         # and model_fields_set contains the field
-        if self.content is None and "content" in self.model_fields_set:
-            _dict['content'] = None
+        if self.sessionId is None and "sessionId" in self.model_fields_set:
+            _dict['sessionId'] = None
 
-        # set to None if mood (nullable) is None
+        # set to None if context (nullable) is None
         # and model_fields_set contains the field
-        if self.mood is None and "mood" in self.model_fields_set:
-            _dict['mood'] = None
+        if self.context is None and "context" in self.model_fields_set:
+            _dict['context'] = None
+
+        # set to None if suggestedQuestions (nullable) is None
+        # and model_fields_set contains the field
+        if self.suggestedQuestions is None and "suggestedQuestions" in self.model_fields_set:
+            _dict['suggestedQuestions'] = None
 
         return _dict
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of UpdateJournalEntryRequest from a dict"""
+        """Create an instance of StartCoachSessionResponse from a dict"""
         if obj is None:
             return None
 
@@ -90,7 +96,8 @@ class UpdateJournalEntryRequest(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "content": obj.get("content"),
-            "mood": obj.get("mood")
+            "sessionId": obj.get("sessionId"),
+            "context": obj.get("context"),
+            "suggestedQuestions": obj.get("suggestedQuestions")
         })
         return _obj

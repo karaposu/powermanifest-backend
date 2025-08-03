@@ -3,7 +3,9 @@
 from typing import Dict, List  # noqa: F401
 import importlib
 import pkgutil
+import logging
 
+logger = logging.getLogger(__name__)
 
 import impl
 
@@ -17,210 +19,596 @@ from fastapi import (  # noqa: F401
     HTTPException,
     Path,
     Query,
+    Request,
     Response,
     Security,
     status,
 )
 
 from models.extra_models import TokenModel  # noqa: F401
-from datetime import date
-from pydantic import Field, StrictBool, StrictStr, field_validator
-from typing import Any, Optional
-from typing_extensions import Annotated
-from models.journal.create_journal_entry400_response import CreateJournalEntry400Response
 from models.journal.create_journal_entry_request import CreateJournalEntryRequest
-from models.journal.export_journal_entries200_response import ExportJournalEntries200Response
-from models.journal.get_journal_analytics200_response import GetJournalAnalytics200Response
-from models.journal.get_journal_entries200_response import GetJournalEntries200Response
-from models.journal.get_journal_entries401_response import GetJournalEntries401Response
-from models.journal.get_journal_entry404_response import GetJournalEntry404Response
 from models.journal.journal_entry import JournalEntry
-from models.journal.mood_type import MoodType
-from models.journal.search_journal_entries200_response import SearchJournalEntries200Response
+from models.journal.journal_entry_preview import JournalEntryPreview
+from models.journal.journal_entry_detail import JournalEntryDetail
 from models.journal.update_journal_entry_request import UpdateJournalEntryRequest
+from models.journal.process_entry_response import ProcessEntryResponse
+from models.journal.suggestions_response import SuggestionsResponse
+from models.journal.create_affirmation_request import CreateAffirmationRequest
+from models.journal.create_affirmation_response import CreateAffirmationResponse
+from models.journal.create_script_request import CreateScriptRequest
+from models.journal.create_script_response import CreateScriptResponse
+from models.journal.start_coach_session_response import StartCoachSessionResponse
+from models.journal.journal_stats import JournalStats
+from models.journal.search_results import SearchResults
+from models.journal.journal_patterns import JournalPatterns
+from models.journal.export_response import ExportResponse
+from models.journal.batch_tag_request import BatchTagRequest
+from models.journal.batch_tag_response import BatchTagResponse
+from models.journal.delete_entry_response import DeleteEntryResponse
+from models.journal.get_entries_response import GetEntriesResponse
+from models.error_response import ErrorResponse
 from security_api import get_token_bearerAuth
+from core.containers import Services
+from datetime import date
+from typing import Optional, List as ListType
+from typing_extensions import Annotated
+from pydantic import Field, StrictBool, StrictInt, StrictStr
+
 
 router = APIRouter()
 
 ns_pkg = impl
-for _, name, _ in pkgutil.iter_modules(ns_pkg.__path__, ns_pkg.__name__ + "."):
+for importer, name, ispkg in pkgutil.iter_modules(ns_pkg.__path__, ns_pkg.__name__ + "."):
     importlib.import_module(name)
+
+
+def get_services(request: Request) -> Services:
+    return request.app.state.services
 
 
 @router.post(
     "/journal/entries",
     responses={
-        201: {"model": JournalEntry, "description": "Journal entry created successfully"},
-        400: {"model": CreateJournalEntry400Response, "description": "Bad request"},
-        401: {"model": GetJournalEntries401Response, "description": "Unauthorized"},
+        201: {"model": JournalEntry, "description": "Entry created successfully"},
+        400: {"model": ErrorResponse, "description": "Bad request"},
+        401: {"model": ErrorResponse, "description": "Unauthorized"},
     },
-    tags=["Journal"],
+    tags=["Journal Entries"],
     summary="Create a new journal entry",
     response_model_by_alias=True,
 )
 async def create_journal_entry(
-    create_journal_entry_request: CreateJournalEntryRequest = Body(None, description=""),
+    create_journal_entry_request: CreateJournalEntryRequest = Body(None),
     token_bearerAuth: TokenModel = Security(
         get_token_bearerAuth
     ),
+    services: Services = Depends(get_services),
 ) -> JournalEntry:
-    """Creates a new personal reflection entry for the user"""
-    pass
-
-
-@router.delete(
-    "/journal/entries/{entry_id}",
-    responses={
-        204: {"description": "Journal entry deleted successfully"},
-        401: {"model": GetJournalEntries401Response, "description": "Unauthorized"},
-        404: {"model": GetJournalEntry404Response, "description": "Resource not found"},
-    },
-    tags=["Journal"],
-    summary="Delete a journal entry",
-    response_model_by_alias=True,
-)
-async def delete_journal_entry(
-    entry_id: StrictStr = Path(..., description=""),
-    token_bearerAuth: TokenModel = Security(
-        get_token_bearerAuth
-    ),
-) -> None:
-    """Remove a journal entry permanently"""
-    pass
-
-
-@router.get(
-    "/journal/export",
-    responses={
-        200: {"model": ExportJournalEntries200Response, "description": "Exported journal data"},
-        401: {"model": GetJournalEntries401Response, "description": "Unauthorized"},
-    },
-    tags=["Journal"],
-    summary="Export journal entries",
-    response_model_by_alias=True,
-)
-async def export_journal_entries(
-    format: Annotated[StrictStr, Field(description="Export format")] = Query(None, description="Export format", alias="format"),
-    date_from: Optional[date] = Query(None, description="", alias="date_from"),
-    date_to: Optional[date] = Query(None, description="", alias="date_to"),
-    include_private: Annotated[Optional[StrictBool], Field(description="Include private entries in export")] = Query(True, description="Include private entries in export", alias="include_private"),
-    token_bearerAuth: TokenModel = Security(
-        get_token_bearerAuth
-    ),
-) -> ExportJournalEntries200Response:
-    """Export user&#39;s journal entries in various formats"""
-    pass
-
-
-@router.get(
-    "/journal/analytics",
-    responses={
-        200: {"model": GetJournalAnalytics200Response, "description": "Journal analytics and insights"},
-        401: {"model": GetJournalEntries401Response, "description": "Unauthorized"},
-    },
-    tags=["Journal"],
-    summary="Get journal analytics and insights",
-    response_model_by_alias=True,
-)
-async def get_journal_analytics(
-    period: Annotated[Optional[StrictStr], Field(description="Time period for analytics")] = Query(month, description="Time period for analytics", alias="period"),
-    token_bearerAuth: TokenModel = Security(
-        get_token_bearerAuth
-    ),
-) -> GetJournalAnalytics200Response:
-    """Get comprehensive analytics about journaling patterns and AI insights"""
-    pass
+    """Create a new journal entry"""
+    try:
+        logger.debug("create_journal_entry is called")
+        from impl.services.journal_service import JournalService
+        journal_service = JournalService(dependencies=services)
+        
+        return journal_service.create_entry(
+            content=create_journal_entry_request.content,
+            mood=create_journal_entry_request.mood,
+            timestamp=create_journal_entry_request.timestamp,
+            user_id=token_bearerAuth.sub
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error creating journal entry: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
 
 
 @router.get(
     "/journal/entries",
     responses={
-        200: {"model": GetJournalEntries200Response, "description": "List of journal entries"},
-        401: {"model": GetJournalEntries401Response, "description": "Unauthorized"},
+        200: {"model": GetEntriesResponse, "description": "List of journal entries"},
+        401: {"model": ErrorResponse, "description": "Unauthorized"},
     },
-    tags=["Journal"],
-    summary="Get journal entries",
+    tags=["Journal Entries"],
+    summary="Get journal entries with filtering",
     response_model_by_alias=True,
 )
 async def get_journal_entries(
-    limit: Annotated[Optional[Annotated[int, Field(le=100, strict=True, ge=1)]], Field(description="Number of entries to return")] = Query(20, description="Number of entries to return", alias="limit", ge=1, le=100),
-    offset: Annotated[Optional[Annotated[int, Field(strict=True, ge=0)]], Field(description="Number of entries to skip")] = Query(0, description="Number of entries to skip", alias="offset", ge=0),
-    date_from: Annotated[Optional[date], Field(description="Filter entries from this date (inclusive)")] = Query(None, description="Filter entries from this date (inclusive)", alias="date_from"),
-    date_to: Annotated[Optional[date], Field(description="Filter entries to this date (inclusive)")] = Query(None, description="Filter entries to this date (inclusive)", alias="date_to"),
-    mood: Annotated[Optional[MoodType], Field(description="Filter by mood type")] = Query(None, description="Filter by mood type", alias="mood"),
-    tags: Annotated[Optional[StrictStr], Field(description="Filter by tags (comma-separated)")] = Query(None, description="Filter by tags (comma-separated)", alias="tags"),
-    search: Annotated[Optional[StrictStr], Field(description="Search in entry content")] = Query(None, description="Search in entry content", alias="search"),
-    sort_by: Annotated[Optional[StrictStr], Field(description="Sort entries by field")] = Query(created_at, description="Sort entries by field", alias="sort_by"),
-    sort_order: Annotated[Optional[StrictStr], Field(description="Sort order")] = Query(desc, description="Sort order", alias="sort_order"),
+    filter: Optional[StrictStr] = Query(None, description="Time-based filter", alias="filter"),
+    limit: Optional[StrictInt] = Query(20, description="Number of entries to return", alias="limit", le=100),
+    offset: Optional[StrictInt] = Query(0, description="Number of entries to skip", alias="offset", ge=0),
+    search: Optional[StrictStr] = Query(None, description="Search query for entry content"),
     token_bearerAuth: TokenModel = Security(
         get_token_bearerAuth
     ),
-) -> GetJournalEntries200Response:
-    """Retrieve user&#39;s journal entries with filtering and pagination"""
-    pass
+    services: Services = Depends(get_services),
+) -> GetEntriesResponse:
+    """Get journal entries with filtering"""
+    try:
+        logger.debug("get_journal_entries is called")
+        from impl.services.journal_service import JournalService
+        journal_service = JournalService(dependencies=services)
+        
+        return journal_service.get_entries(
+            filter=filter,
+            limit=limit,
+            offset=offset,
+            search=search,
+            user_id=token_bearerAuth.sub
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting journal entries: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
+
 
 @router.get(
-    "/journal/entries/{entry_id}",
+    "/journal/entries/{entryId}",
     responses={
-        200: {"model": JournalEntry, "description": "Journal entry details"},
-        401: {"model": GetJournalEntries401Response, "description": "Unauthorized"},
-        404: {"model": GetJournalEntry404Response, "description": "Resource not found"},
+        200: {"model": JournalEntryDetail, "description": "Journal entry details"},
+        404: {"model": ErrorResponse, "description": "Not found"},
+        401: {"model": ErrorResponse, "description": "Unauthorized"},
     },
-    tags=["Journal"],
+    tags=["Journal Entries"],
     summary="Get a specific journal entry",
     response_model_by_alias=True,
 )
 async def get_journal_entry(
-    entry_id: StrictStr = Path(..., description=""),
+    entryId: StrictStr = Path(..., description=""),
     token_bearerAuth: TokenModel = Security(
         get_token_bearerAuth
     ),
-) -> JournalEntry:
-    """Retrieve a single journal entry by ID"""
-    pass
+    services: Services = Depends(get_services),
+) -> JournalEntryDetail:
+    """Get a specific journal entry"""
+    try:
+        logger.debug("get_journal_entry is called")
+        from impl.services.journal_service import JournalService
+        journal_service = JournalService(services.user_manager, services.db_session, services.openai_client)
+        
+        return journal_service.get_entry(
+            entry_id=entryId,
+            user_id=token_bearerAuth.sub
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting journal entry: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
 
 
-@router.get(
-    "/journal/entries/search",
+@router.patch(
+    "/journal/entries/{entryId}",
     responses={
-        200: {"model": SearchJournalEntries200Response, "description": "Search results with relevance scoring"},
-        400: {"model": CreateJournalEntry400Response, "description": "Bad request"},
-        401: {"model": GetJournalEntries401Response, "description": "Unauthorized"},
+        200: {"model": JournalEntry, "description": "Updated entry"},
+        404: {"model": ErrorResponse, "description": "Not found"},
+        401: {"model": ErrorResponse, "description": "Unauthorized"},
     },
-    tags=["Journal"],
-    summary="Advanced search in journal entries",
-    response_model_by_alias=True,
-)
-async def search_journal_entries(
-    query: Annotated[StrictStr, Field(description="Search query (supports semantic search)")] = Query(None, description="Search query (supports semantic search)", alias="query"),
-    limit: Optional[Annotated[int, Field(le=50, strict=True, ge=1)]] = Query(10, description="", alias="limit", ge=1, le=50),
-    date_range: Annotated[Optional[StrictStr], Field(description="Date range filter")] = Query(all_time, description="Date range filter", alias="date_range"),
-    include_ai_analysis: Annotated[Optional[StrictBool], Field(description="Include AI analysis of search results")] = Query(True, description="Include AI analysis of search results", alias="include_ai_analysis"),
-    token_bearerAuth: TokenModel = Security(
-        get_token_bearerAuth
-    ),
-) -> SearchJournalEntries200Response:
-    """Search journal entries with advanced filters and AI-powered semantic search"""
-    pass
-
-@router.put(
-    "/journal/entries/{entry_id}",
-    responses={
-        200: {"model": JournalEntry, "description": "Journal entry updated successfully"},
-        400: {"model": CreateJournalEntry400Response, "description": "Bad request"},
-        401: {"model": GetJournalEntries401Response, "description": "Unauthorized"},
-        404: {"model": GetJournalEntry404Response, "description": "Resource not found"},
-    },
-    tags=["Journal"],
+    tags=["Journal Entries"],
     summary="Update a journal entry",
     response_model_by_alias=True,
 )
 async def update_journal_entry(
-    entry_id: StrictStr = Path(..., description=""),
-    update_journal_entry_request: UpdateJournalEntryRequest = Body(None, description=""),
+    entryId: StrictStr = Path(..., description=""),
+    update_journal_entry_request: UpdateJournalEntryRequest = Body(None),
     token_bearerAuth: TokenModel = Security(
         get_token_bearerAuth
     ),
+    services: Services = Depends(get_services),
 ) -> JournalEntry:
-    """Update an existing journal entry"""
-    pass
+    """Update a journal entry"""
+    try:
+        logger.debug("update_journal_entry is called")
+        from impl.services.journal_service import JournalService
+        journal_service = JournalService(services.user_manager, services.db_session, services.openai_client)
+        
+        return journal_service.update_entry(
+            entry_id=entryId,
+            content=update_journal_entry_request.content,
+            mood=update_journal_entry_request.mood,
+            user_id=token_bearerAuth.sub
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating journal entry: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
+
+
+@router.delete(
+    "/journal/entries/{entryId}",
+    responses={
+        200: {"model": DeleteEntryResponse, "description": "Entry deleted successfully"},
+        404: {"model": ErrorResponse, "description": "Not found"},
+        401: {"model": ErrorResponse, "description": "Unauthorized"},
+    },
+    tags=["Journal Entries"],
+    summary="Delete a journal entry",
+    response_model_by_alias=True,
+)
+async def delete_journal_entry(
+    entryId: StrictStr = Path(..., description=""),
+    token_bearerAuth: TokenModel = Security(
+        get_token_bearerAuth
+    ),
+    services: Services = Depends(get_services),
+) -> DeleteEntryResponse:
+    """Delete a journal entry"""
+    try:
+        logger.debug("delete_journal_entry is called")
+        from impl.services.journal_service import JournalService
+        journal_service = JournalService(services.user_manager, services.db_session, services.openai_client)
+        
+        return journal_service.delete_entry(
+            entry_id=entryId,
+            user_id=token_bearerAuth.sub
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting journal entry: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
+
+
+@router.post(
+    "/journal/entries/{entryId}/process",
+    responses={
+        200: {"model": ProcessEntryResponse, "description": "AI processing results"},
+        404: {"model": ErrorResponse, "description": "Not found"},
+        401: {"model": ErrorResponse, "description": "Unauthorized"},
+    },
+    tags=["AI Processing"],
+    summary="Process journal entry with AI",
+    response_model_by_alias=True,
+)
+async def process_journal_entry(
+    entryId: StrictStr = Path(..., description=""),
+    token_bearerAuth: TokenModel = Security(
+        get_token_bearerAuth
+    ),
+    services: Services = Depends(get_services),
+) -> ProcessEntryResponse:
+    """Process journal entry with AI"""
+    try:
+        logger.debug("process_journal_entry is called")
+        from impl.services.journal_service import JournalService
+        journal_service = JournalService(services.user_manager, services.db_session, services.openai_client)
+        
+        return journal_service.process_entry(
+            entry_id=entryId,
+            user_id=token_bearerAuth.sub
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error processing journal entry: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
+
+
+@router.get(
+    "/journal/entries/{entryId}/suggestions",
+    responses={
+        200: {"model": SuggestionsResponse, "description": "AI suggestions"},
+        404: {"model": ErrorResponse, "description": "Not found"},
+        401: {"model": ErrorResponse, "description": "Unauthorized"},
+    },
+    tags=["AI Processing"],
+    summary="Get AI suggestions for entry",
+    response_model_by_alias=True,
+)
+async def get_entry_suggestions(
+    entryId: StrictStr = Path(..., description=""),
+    token_bearerAuth: TokenModel = Security(
+        get_token_bearerAuth
+    ),
+    services: Services = Depends(get_services),
+) -> SuggestionsResponse:
+    """Get AI suggestions for entry"""
+    try:
+        logger.debug("get_entry_suggestions is called")
+        from impl.services.journal_service import JournalService
+        journal_service = JournalService(services.user_manager, services.db_session, services.openai_client)
+        
+        return journal_service.get_suggestions(
+            entry_id=entryId,
+            user_id=token_bearerAuth.sub
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting entry suggestions: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
+
+
+@router.post(
+    "/journal/entries/{entryId}/create-affirmation",
+    responses={
+        201: {"model": CreateAffirmationResponse, "description": "Affirmation created"},
+        404: {"model": ErrorResponse, "description": "Not found"},
+        401: {"model": ErrorResponse, "description": "Unauthorized"},
+    },
+    tags=["AI Actions"],
+    summary="Create affirmation from journal entry",
+    response_model_by_alias=True,
+)
+async def create_affirmation_from_entry(
+    entryId: StrictStr = Path(..., description=""),
+    create_affirmation_request: CreateAffirmationRequest = Body(None),
+    token_bearerAuth: TokenModel = Security(
+        get_token_bearerAuth
+    ),
+    services: Services = Depends(get_services),
+) -> CreateAffirmationResponse:
+    """Create affirmation from journal entry"""
+    try:
+        logger.debug("create_affirmation_from_entry is called")
+        from impl.services.journal_service import JournalService
+        journal_service = JournalService(services.user_manager, services.db_session, services.openai_client)
+        
+        return journal_service.create_affirmation_from_entry(
+            entry_id=entryId,
+            style=create_affirmation_request.style,
+            tone=create_affirmation_request.tone,
+            user_id=token_bearerAuth.sub
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error creating affirmation from entry: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
+
+
+@router.post(
+    "/journal/entries/{entryId}/create-script",
+    responses={
+        201: {"model": CreateScriptResponse, "description": "Script created"},
+        404: {"model": ErrorResponse, "description": "Not found"},
+        401: {"model": ErrorResponse, "description": "Unauthorized"},
+    },
+    tags=["AI Actions"],
+    summary="Generate visualization script from journal entry",
+    response_model_by_alias=True,
+)
+async def create_script_from_entry(
+    entryId: StrictStr = Path(..., description=""),
+    create_script_request: CreateScriptRequest = Body(None),
+    token_bearerAuth: TokenModel = Security(
+        get_token_bearerAuth
+    ),
+    services: Services = Depends(get_services),
+) -> CreateScriptResponse:
+    """Generate visualization script from journal entry"""
+    try:
+        logger.debug("create_script_from_entry is called")
+        from impl.services.journal_service import JournalService
+        journal_service = JournalService(services.user_manager, services.db_session, services.openai_client)
+        
+        return journal_service.create_script_from_entry(
+            entry_id=entryId,
+            duration=create_script_request.duration,
+            type=create_script_request.type,
+            user_id=token_bearerAuth.sub
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error creating script from entry: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
+
+
+@router.post(
+    "/journal/entries/{entryId}/start-coach-session",
+    responses={
+        201: {"model": StartCoachSessionResponse, "description": "Coach session started"},
+        404: {"model": ErrorResponse, "description": "Not found"},
+        401: {"model": ErrorResponse, "description": "Unauthorized"},
+    },
+    tags=["AI Actions"],
+    summary="Start AI coach session from journal entry context",
+    response_model_by_alias=True,
+)
+async def start_coach_session_from_entry(
+    entryId: StrictStr = Path(..., description=""),
+    token_bearerAuth: TokenModel = Security(
+        get_token_bearerAuth
+    ),
+    services: Services = Depends(get_services),
+) -> StartCoachSessionResponse:
+    """Start AI coach session from journal entry context"""
+    try:
+        logger.debug("start_coach_session_from_entry is called")
+        from impl.services.journal_service import JournalService
+        journal_service = JournalService(services.user_manager, services.db_session, services.openai_client)
+        
+        return journal_service.start_coach_session_from_entry(
+            entry_id=entryId,
+            user_id=token_bearerAuth.sub
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error starting coach session from entry: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
+
+
+@router.get(
+    "/journal/stats",
+    responses={
+        200: {"model": JournalStats, "description": "Journal statistics"},
+        401: {"model": ErrorResponse, "description": "Unauthorized"},
+    },
+    tags=["Analytics"],
+    summary="Get journal statistics",
+    response_model_by_alias=True,
+)
+async def get_journal_stats(
+    period: Optional[StrictStr] = Query("month", description="Time period", alias="period"),
+    token_bearerAuth: TokenModel = Security(
+        get_token_bearerAuth
+    ),
+    services: Services = Depends(get_services),
+) -> JournalStats:
+    """Get journal statistics"""
+    try:
+        logger.debug("get_journal_stats is called")
+        from impl.services.journal_service import JournalService
+        journal_service = JournalService(services.user_manager, services.db_session, services.openai_client)
+        
+        return journal_service.get_stats(
+            period=period,
+            user_id=token_bearerAuth.sub
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting journal stats: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
+
+
+@router.get(
+    "/journal/search",
+    responses={
+        200: {"model": SearchResults, "description": "Search results"},
+        401: {"model": ErrorResponse, "description": "Unauthorized"},
+    },
+    tags=["Search"],
+    summary="Search journal entries",
+    response_model_by_alias=True,
+)
+async def search_journal_entries(
+    q: StrictStr = Query(..., description="Search query"),
+    mood: Optional[StrictStr] = Query(None, description="Filter by mood"),
+    tags: Optional[ListType[StrictStr]] = Query(None, description="Filter by tags"),
+    dateFrom: Optional[date] = Query(None, description="Start date", alias="dateFrom"),
+    dateTo: Optional[date] = Query(None, description="End date", alias="dateTo"),
+    limit: Optional[StrictInt] = Query(20, description="Number of results"),
+    token_bearerAuth: TokenModel = Security(
+        get_token_bearerAuth
+    ),
+    services: Services = Depends(get_services),
+) -> SearchResults:
+    """Search journal entries"""
+    try:
+        logger.debug("search_journal_entries is called")
+        from impl.services.journal_service import JournalService
+        journal_service = JournalService(services.user_manager, services.db_session, services.openai_client)
+        
+        return journal_service.search_entries(
+            query=q,
+            mood=mood,
+            tags=tags,
+            date_from=dateFrom,
+            date_to=dateTo,
+            limit=limit,
+            user_id=token_bearerAuth.sub
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error searching journal entries: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
+
+
+@router.get(
+    "/journal/patterns",
+    responses={
+        200: {"model": JournalPatterns, "description": "Entry patterns"},
+        401: {"model": ErrorResponse, "description": "Unauthorized"},
+    },
+    tags=["Analytics"],
+    summary="Get journal entry patterns for AI context",
+    response_model_by_alias=True,
+)
+async def get_journal_patterns(
+    token_bearerAuth: TokenModel = Security(
+        get_token_bearerAuth
+    ),
+    services: Services = Depends(get_services),
+) -> JournalPatterns:
+    """Get journal entry patterns for AI context"""
+    try:
+        logger.debug("get_journal_patterns is called")
+        from impl.services.journal_service import JournalService
+        journal_service = JournalService(services.user_manager, services.db_session, services.openai_client)
+        
+        return journal_service.get_patterns(user_id=token_bearerAuth.sub)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting journal patterns: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
+
+
+@router.get(
+    "/journal/export",
+    responses={
+        200: {"model": ExportResponse, "description": "Export details"},
+        401: {"model": ErrorResponse, "description": "Unauthorized"},
+    },
+    tags=["Export"],
+    summary="Export journal entries",
+    response_model_by_alias=True,
+)
+async def export_journal_entries(
+    format: StrictStr = Query(..., description="Export format"),
+    dateFrom: Optional[date] = Query(None, description="Start date", alias="dateFrom"),
+    dateTo: Optional[date] = Query(None, description="End date", alias="dateTo"),
+    token_bearerAuth: TokenModel = Security(
+        get_token_bearerAuth
+    ),
+    services: Services = Depends(get_services),
+) -> ExportResponse:
+    """Export journal entries"""
+    try:
+        logger.debug("export_journal_entries is called")
+        from impl.services.journal_service import JournalService
+        journal_service = JournalService(services.user_manager, services.db_session, services.openai_client)
+        
+        return journal_service.export_entries(
+            format=format,
+            date_from=dateFrom,
+            date_to=dateTo,
+            user_id=token_bearerAuth.sub
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error exporting journal entries: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
+
+
+@router.post(
+    "/journal/tags/batch",
+    responses={
+        200: {"model": BatchTagResponse, "description": "Batch update results"},
+        401: {"model": ErrorResponse, "description": "Unauthorized"},
+    },
+    tags=["Tags"],
+    summary="Batch tag management",
+    response_model_by_alias=True,
+)
+async def batch_tag_management(
+    batch_tag_request: BatchTagRequest = Body(None),
+    token_bearerAuth: TokenModel = Security(
+        get_token_bearerAuth
+    ),
+    services: Services = Depends(get_services),
+) -> BatchTagResponse:
+    """Batch tag management"""
+    try:
+        logger.debug("batch_tag_management is called")
+        from impl.services.journal_service import JournalService
+        journal_service = JournalService(services.user_manager, services.db_session, services.openai_client)
+        
+        return journal_service.batch_tag_management(
+            action=batch_tag_request.action,
+            entry_ids=batch_tag_request.entryIds,
+            tags=batch_tag_request.tags,
+            user_id=token_bearerAuth.sub
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in batch tag management: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")

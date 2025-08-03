@@ -23,9 +23,9 @@ from typing import Any, ClassVar, Dict, List, Optional
 from typing import Optional, Set
 from typing_extensions import Self
 
-class JournalEntry(BaseModel):
+class JournalEntryDetail(BaseModel):
     """
-    JournalEntry
+    JournalEntryDetail - Extended journal entry with related actions
     """  # noqa: E501
     id: Optional[StrictStr] = Field(default=None, description="Entry ID")
     userId: Optional[StrictStr] = Field(default=None, description="User ID", alias="userId")
@@ -35,8 +35,8 @@ class JournalEntry(BaseModel):
     tags: Optional[List[StrictStr]] = Field(default=None, description="Entry tags")
     insights: Optional[List[StrictStr]] = Field(default=None, description="AI-generated insights")
     suggestionsAvailable: Optional[StrictBool] = Field(default=None, description="Whether suggestions are available", alias="suggestionsAvailable")
-    requiresReprocessing: Optional[StrictBool] = Field(default=None, description="Whether entry requires reprocessing", alias="requiresReprocessing")
-    __properties: ClassVar[List[str]] = ["id", "userId", "content", "mood", "timestamp", "tags", "insights", "suggestionsAvailable", "requiresReprocessing"]
+    relatedActions: Optional[Dict[str, Optional[StrictStr]]] = Field(default=None, description="Related action IDs", alias="relatedActions")
+    __properties: ClassVar[List[str]] = ["id", "userId", "content", "mood", "timestamp", "tags", "insights", "suggestionsAvailable", "relatedActions"]
 
     model_config = {
         "populate_by_name": True,
@@ -55,7 +55,7 @@ class JournalEntry(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of JournalEntry from a JSON string"""
+        """Create an instance of JournalEntryDetail from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -116,16 +116,16 @@ class JournalEntry(BaseModel):
         if self.suggestionsAvailable is None and "suggestionsAvailable" in self.model_fields_set:
             _dict['suggestionsAvailable'] = None
 
-        # set to None if requiresReprocessing (nullable) is None
+        # set to None if relatedActions (nullable) is None
         # and model_fields_set contains the field
-        if self.requiresReprocessing is None and "requiresReprocessing" in self.model_fields_set:
-            _dict['requiresReprocessing'] = None
+        if self.relatedActions is None and "relatedActions" in self.model_fields_set:
+            _dict['relatedActions'] = None
 
         return _dict
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of JournalEntry from a dict"""
+        """Create an instance of JournalEntryDetail from a dict"""
         if obj is None:
             return None
 
@@ -141,6 +141,6 @@ class JournalEntry(BaseModel):
             "tags": obj.get("tags"),
             "insights": obj.get("insights"),
             "suggestionsAvailable": obj.get("suggestionsAvailable"),
-            "requiresReprocessing": obj.get("requiresReprocessing")
+            "relatedActions": obj.get("relatedActions")
         })
         return _obj

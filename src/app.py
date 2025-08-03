@@ -42,6 +42,7 @@ from apis.messages_api import router as MessageApiRouter
 from apis.info_api import router as InfoApiRouter
 from apis.auth_api import router as AuthApiRouter
 from apis.affirmations_api import router as AffirmationsApiRouter
+from apis.journal_api import router as JournalApiRouter
 
 
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -117,6 +118,7 @@ app.include_router(ChatApiRouter)
 app.include_router(MessageApiRouter)
 app.include_router(InfoApiRouter)
 app.include_router(AffirmationsApiRouter)
+app.include_router(JournalApiRouter)
 
 # app.include_router(DependenciesApiRouter)
 

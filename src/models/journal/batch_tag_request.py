@@ -17,18 +17,26 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, Field, StrictStr
+from pydantic import BaseModel, Field, StrictStr, field_validator
 from typing import Any, ClassVar, Dict, List, Optional
 from typing import Optional, Set
 from typing_extensions import Self
 
-class UpdateJournalEntryRequest(BaseModel):
+class BatchTagRequest(BaseModel):
     """
-    UpdateJournalEntryRequest
+    BatchTagRequest
     """  # noqa: E501
-    content: Optional[StrictStr] = Field(default=None, description="Updated journal entry content")
-    mood: Optional[StrictStr] = Field(default=None, description="Updated emoji representing mood")
-    __properties: ClassVar[List[str]] = ["content", "mood"]
+    action: StrictStr = Field(description="Action to perform")
+    entryIds: List[StrictStr] = Field(description="Entry IDs to update", alias="entryIds")
+    tags: List[StrictStr] = Field(description="Tags to add or remove")
+    __properties: ClassVar[List[str]] = ["action", "entryIds", "tags"]
+
+    @field_validator('action')
+    def action_validate_enum(cls, value):
+        """Validates the enum"""
+        if value not in ('add', 'remove'):
+            raise ValueError("must be one of enum values ('add', 'remove')")
+        return value
 
     model_config = {
         "populate_by_name": True,
@@ -47,7 +55,7 @@ class UpdateJournalEntryRequest(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of UpdateJournalEntryRequest from a JSON string"""
+        """Create an instance of BatchTagRequest from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -68,21 +76,11 @@ class UpdateJournalEntryRequest(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
-        # set to None if content (nullable) is None
-        # and model_fields_set contains the field
-        if self.content is None and "content" in self.model_fields_set:
-            _dict['content'] = None
-
-        # set to None if mood (nullable) is None
-        # and model_fields_set contains the field
-        if self.mood is None and "mood" in self.model_fields_set:
-            _dict['mood'] = None
-
         return _dict
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of UpdateJournalEntryRequest from a dict"""
+        """Create an instance of BatchTagRequest from a dict"""
         if obj is None:
             return None
 
@@ -90,7 +88,8 @@ class UpdateJournalEntryRequest(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "content": obj.get("content"),
-            "mood": obj.get("mood")
+            "action": obj.get("action"),
+            "entryIds": obj.get("entryIds"),
+            "tags": obj.get("tags")
         })
         return _obj
