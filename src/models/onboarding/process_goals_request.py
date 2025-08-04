@@ -26,8 +26,8 @@ class ProcessGoalsRequest(BaseModel):
     """
     ProcessGoalsRequest
     """  # noqa: E501
-    user_input: StrictStr = Field(description="User input for generating goals and insights")
-    __properties: ClassVar[List[str]] = ["user_input"]
+    goals: List[StrictStr] = Field(description="List of user's goals")
+    __properties: ClassVar[List[str]] = ["goals"]
 
     model_config = {
         "populate_by_name": True,
@@ -79,6 +79,6 @@ class ProcessGoalsRequest(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "user_input": obj.get("user_input")
+            "goals": obj.get("goals")
         })
         return _obj

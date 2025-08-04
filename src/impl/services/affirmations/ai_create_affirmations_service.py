@@ -36,13 +36,48 @@ class AiCreateAffirmationsService:
     
     def _preprocess_request_data(self):
         """Generate affirmations using LLM based on user context."""
-        # Validate request has context
-        if not hasattr(self.request, 'context_corpus') or not self.request.context_corpus.strip():
-            raise HTTPException(status_code=400, detail="Context is required for AI affirmation generation")
+        # Check if journal_id is provided
+        journal_id = getattr(self.request, 'journal_id', None)
+        context = ""
+        
+        if journal_id:
+            # If journal_id is provided, fetch the journal entry and use it as context
+            session = self._get_session()
+            try:
+                from db.models.journal import JournalEntry
+                journal_entry = session.query(JournalEntry).filter_by(
+                    id=journal_id,
+                    user_id=self.user_id,
+                    is_deleted=False
+                ).first()
+                
+                if not journal_entry:
+                    raise HTTPException(status_code=404, detail="Journal entry not found")
+                
+                # Build context from journal entry
+                context_parts = [f"Journal entry: {journal_entry.content}"]
+                if journal_entry.mood:
+                    context_parts.append(f"Mood: {journal_entry.mood}")
+                
+                if journal_entry.insights and isinstance(journal_entry.insights, dict):
+                    if 'emotionalState' in journal_entry.insights:
+                        context_parts.append(f"Emotional state: {journal_entry.insights['emotionalState']}")
+                    if 'themes' in journal_entry.insights:
+                        context_parts.append(f"Themes: {', '.join(journal_entry.insights['themes'])}")
+                
+                context = " | ".join(context_parts)
+                self.journal_id = journal_id
+            finally:
+                session.close()
+        else:
+            # Use provided context
+            if not hasattr(self.request, 'context_corpus') or not self.request.context_corpus.strip():
+                raise HTTPException(status_code=400, detail="Context is required for AI affirmation generation")
+            context = self.request.context_corpus.strip()
+            self.journal_id = None
         
         try:
             # Extract request parameters matching the request model field names
-            context = self.request.context_corpus.strip()
             category = getattr(self.request, 'affirmation_category', None)
             count = getattr(self.request, 'amount', 5)  # Default to 5 affirmations
             style = self.request.style  # Required field
@@ -104,6 +139,7 @@ class AiCreateAffirmationsService:
             for affirmation_data in affirmations_data:
                 affirmation = affirmation_repo.create_affirmation(
                     user_id=self.user_id,
+                    journal_id=self.journal_id if hasattr(self, 'journal_id') else None,
                     content=affirmation_data['content'],
                     category=affirmation_data.get('category'),
                     voice_enabled=affirmation_data.get('voice_enabled', False),

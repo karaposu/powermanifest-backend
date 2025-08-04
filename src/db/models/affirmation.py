@@ -11,6 +11,7 @@ class Affirmation(Base):
     
     id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(Integer, ForeignKey('users.user_id', ondelete='CASCADE'), nullable=True)
+    journal_id = Column(Integer, ForeignKey('journal_entries.id', ondelete='SET NULL'), nullable=True)
     content = Column(Text, nullable=False)
     category = Column(String(100), nullable=True)
     source = Column(String(50), default='user_created', nullable=True)  # 'ai_generated' or 'user_created'
@@ -29,8 +30,9 @@ class Affirmation(Base):
     created_at = Column(DateTime, default=datetime.utcnow, nullable=True)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=True)
     
-    # Relationship to user
+    # Relationships
     user = relationship('User', back_populates='affirmations')
+    journal_entry = relationship('JournalEntry', backref='affirmations')
     
     def __repr__(self):
-        return f"<Affirmation id={self.id} user_id={self.user_id}>"
+        return f"<Affirmation id={self.id} user_id={self.user_id} journal_id={self.journal_id}>"

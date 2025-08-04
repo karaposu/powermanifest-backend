@@ -22,7 +22,7 @@ class AffirmationRepository:
     
     def create_affirmation(self, user_id: int, content: str, category: Optional[str] = None,
                           voice_enabled: bool = False, voice_id: Optional[str] = None, 
-                          source: str = 'user_created') -> Affirmation:
+                          source: str = 'user_created', journal_id: Optional[int] = None) -> Affirmation:
         """
         Create a new affirmation for a user.
         
@@ -32,6 +32,8 @@ class AffirmationRepository:
             category: Optional category for the affirmation
             voice_enabled: Whether voice is enabled for this affirmation
             voice_id: Optional voice ID for TTS
+            source: Source of the affirmation (user_created or ai_generated)
+            journal_id: Optional ID of the journal entry this affirmation is based on
             
         Returns:
             The created Affirmation object
@@ -39,6 +41,7 @@ class AffirmationRepository:
         try:
             affirmation = Affirmation(
                 user_id=user_id,
+                journal_id=journal_id,
                 content=content,
                 category=category,
                 source=source,

@@ -60,7 +60,7 @@ def get_services(request: Request) -> Services:
     summary="Process user input to generate a name",
     response_model_by_alias=True,
 )
-async def process_name(
+def process_name(
     process_name_request: ProcessNameRequest = Body(None),
     token_bearerAuth: TokenModel = Security(
         get_token_bearerAuth
@@ -73,12 +73,11 @@ async def process_name(
     try:
         logger.debug("process_name is called")
         from impl.services.onboarding_service import OnboardingService
-        onboarding_service = OnboardingService(services.user_manager, services.db_session, services.openai_client)
+        onboarding_service = OnboardingService(dependencies=services)
         
-        return await onboarding_service.process_name(
-            user_input=process_name_request.user_input,
-            direct=process_name_request.direct,
-            user_id=token_bearerAuth.sub
+        return onboarding_service.process_name(
+            preferred_name=process_name_request.name,
+            user_id=int(token_bearerAuth.sub)
         )
     except HTTPException:
         raise
@@ -97,7 +96,7 @@ async def process_name(
     summary="Process user input to generate goals and insights",
     response_model_by_alias=True,
 )
-async def process_goals(
+def process_goals(
     process_goals_request: ProcessGoalsRequest = Body(None),
     token_bearerAuth: TokenModel = Security(
         get_token_bearerAuth
@@ -110,11 +109,11 @@ async def process_goals(
     try:
         logger.debug("process_goals is called")
         from impl.services.onboarding_service import OnboardingService
-        onboarding_service = OnboardingService(services.user_manager, services.db_session, services.openai_client)
+        onboarding_service = OnboardingService(dependencies=services)
         
-        return await onboarding_service.process_goals(
-            user_input=process_goals_request.user_input,
-            user_id=token_bearerAuth.sub
+        return onboarding_service.process_goals(
+            goals=process_goals_request.goals,
+            user_id=int(token_bearerAuth.sub)
         )
     except HTTPException:
         raise
@@ -133,7 +132,7 @@ async def process_goals(
     summary="Complete the onboarding process",
     response_model_by_alias=True,
 )
-async def complete_onboarding(
+def complete_onboarding(
     token_bearerAuth: TokenModel = Security(
         get_token_bearerAuth
     ),
@@ -145,9 +144,9 @@ async def complete_onboarding(
     try:
         logger.debug("complete_onboarding is called")
         from impl.services.onboarding_service import OnboardingService
-        onboarding_service = OnboardingService(services.user_manager, services.db_session, services.openai_client)
+        onboarding_service = OnboardingService(dependencies=services)
         
-        return await onboarding_service.complete_onboarding(user_id=token_bearerAuth.sub)
+        return onboarding_service.complete_onboarding(user_id=int(token_bearerAuth.sub))
     except HTTPException:
         raise
     except Exception as e:

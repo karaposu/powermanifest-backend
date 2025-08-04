@@ -26,9 +26,8 @@ class ProcessNameRequest(BaseModel):
     """
     ProcessNameRequest
     """  # noqa: E501
-    user_input: StrictStr = Field(description="User input for generating name")
-    direct: Optional[StrictBool] = Field(default=False, description="Whether to process directly or use AI")
-    __properties: ClassVar[List[str]] = ["user_input", "direct"]
+    name: StrictStr = Field(description="User's preferred name")
+    __properties: ClassVar[List[str]] = ["name"]
 
     model_config = {
         "populate_by_name": True,
@@ -80,7 +79,6 @@ class ProcessNameRequest(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "user_input": obj.get("user_input"),
-            "direct": obj.get("direct") if obj.get("direct") is not None else False
+            "name": obj.get("name")
         })
         return _obj

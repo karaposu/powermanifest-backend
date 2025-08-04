@@ -21,7 +21,7 @@ import json
 
 
 
-from pydantic import BaseModel, ConfigDict, Field, StrictStr, field_validator
+from pydantic import BaseModel, ConfigDict, Field, StrictStr, StrictInt, field_validator
 from typing import Any, ClassVar, Dict, List, Optional
 from typing_extensions import Annotated
 from models.affirmation.affirmation_category import AffirmationCategory
@@ -35,11 +35,12 @@ class AiCreateAffirmationsRequest(BaseModel):
     AiCreateAffirmationsRequest
     """ # noqa: E501
     context_corpus: StrictStr = Field(description="User's context data (goals, blocks, journal entries, etc.)")
+    journal_id: Optional[StrictInt] = Field(default=None, description="Optional journal entry ID to base affirmations on")
     affirmation_category: Optional[AffirmationCategory] = None
     amount: Optional[Annotated[int, Field(le=20, strict=True, ge=1)]] = Field(default=5, description="Number of affirmations to generate")
     style: StrictStr = Field(description="Communication style preference")
     uslub: StrictStr = Field(description="Tone and approach style")
-    __properties: ClassVar[List[str]] = ["context_corpus", "affirmation_category", "amount", "style", "uslub"]
+    __properties: ClassVar[List[str]] = ["context_corpus", "journal_id", "affirmation_category", "amount", "style", "uslub"]
 
     @field_validator('style')
     def style_validate_enum(cls, value):
@@ -105,6 +106,7 @@ class AiCreateAffirmationsRequest(BaseModel):
 
         _obj = cls.model_validate({
             "context_corpus": obj.get("context_corpus"),
+            "journal_id": obj.get("journal_id"),
             "affirmation_category": obj.get("affirmation_category"),
             "amount": obj.get("amount") if obj.get("amount") is not None else 5,
             "style": obj.get("style"),

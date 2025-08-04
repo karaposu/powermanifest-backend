@@ -366,44 +366,6 @@ async def create_affirmation_from_entry(
 
 
 @router.post(
-    "/journal/entries/{entryId}/create-script",
-    responses={
-        201: {"model": CreateScriptResponse, "description": "Script created"},
-        404: {"model": ErrorResponse, "description": "Not found"},
-        401: {"model": ErrorResponse, "description": "Unauthorized"},
-    },
-    tags=["AI Actions"],
-    summary="Generate visualization script from journal entry",
-    response_model_by_alias=True,
-)
-async def create_script_from_entry(
-    entryId: str = Path(..., description=""),
-    create_script_request: CreateScriptRequest = Body(None),
-    token_bearerAuth: TokenModel = Security(
-        get_token_bearerAuth
-    ),
-    services: Services = Depends(get_services),
-) -> CreateScriptResponse:
-    """Generate visualization script from journal entry"""
-    try:
-        logger.debug("create_script_from_entry is called")
-        from impl.services.journal_service import JournalService
-        journal_service = JournalService(dependencies=services)
-        
-        return journal_service.create_script_from_entry(
-            entry_id=entryId,
-            duration=create_script_request.duration,
-            type=create_script_request.type,
-            user_id=int(token_bearerAuth.sub)
-        )
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error creating script from entry: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
-
-
-@router.post(
     "/journal/entries/{entryId}/start-coach-session",
     responses={
         201: {"model": StartCoachSessionResponse, "description": "Coach session started"},
@@ -516,34 +478,7 @@ async def search_journal_entries(
         raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
 
 
-@router.get(
-    "/journal/patterns",
-    responses={
-        200: {"model": JournalPatterns, "description": "Entry patterns"},
-        401: {"model": ErrorResponse, "description": "Unauthorized"},
-    },
-    tags=["Analytics"],
-    summary="Get journal entry patterns for AI context",
-    response_model_by_alias=True,
-)
-async def get_journal_patterns(
-    token_bearerAuth: TokenModel = Security(
-        get_token_bearerAuth
-    ),
-    services: Services = Depends(get_services),
-) -> JournalPatterns:
-    """Get journal entry patterns for AI context"""
-    try:
-        logger.debug("get_journal_patterns is called")
-        from impl.services.journal_service import JournalService
-        journal_service = JournalService(dependencies=services)
-        
-        return journal_service.get_patterns(user_id=token_bearerAuth.sub)
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error getting journal patterns: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
+
 
 
 @router.get(
@@ -556,6 +491,7 @@ async def get_journal_patterns(
     summary="Export journal entries",
     response_model_by_alias=True,
 )
+
 async def export_journal_entries(
     format: str = Query(..., description="Export format"),
     dateFrom: Optional[date] = Query(None, description="Start date", alias="dateFrom"),
@@ -583,38 +519,3 @@ async def export_journal_entries(
         logger.error(f"Error exporting journal entries: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
 
-
-@router.post(
-    "/journal/tags/batch",
-    responses={
-        200: {"model": BatchTagResponse, "description": "Batch update results"},
-        401: {"model": ErrorResponse, "description": "Unauthorized"},
-    },
-    tags=["Tags"],
-    summary="Batch tag management",
-    response_model_by_alias=True,
-)
-async def batch_tag_management(
-    batch_tag_request: BatchTagRequest = Body(None),
-    token_bearerAuth: TokenModel = Security(
-        get_token_bearerAuth
-    ),
-    services: Services = Depends(get_services),
-) -> BatchTagResponse:
-    """Batch tag management"""
-    try:
-        logger.debug("batch_tag_management is called")
-        from impl.services.journal_service import JournalService
-        journal_service = JournalService(dependencies=services)
-        
-        return journal_service.batch_tag_management(
-            action=batch_tag_request.action,
-            entry_ids=batch_tag_request.entryIds,
-            tags=batch_tag_request.tags,
-            user_id=int(token_bearerAuth.sub)
-        )
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error in batch tag management: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
