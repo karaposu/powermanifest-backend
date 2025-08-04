@@ -125,10 +125,10 @@ class AffirmationRepository:
             
             # Update allowed fields
             updateable_fields = ['content', 'category', 'voice_enabled', 'voice_id', 
-                               'schedule_config_id', 'is_active']
+                               'schedule_config', 'is_active']
             
             for field, value in kwargs.items():
-                if field in updateable_fields and value is not None:
+                if field in updateable_fields:
                     setattr(affirmation, field, value)
             
             # Update the updated_at timestamp

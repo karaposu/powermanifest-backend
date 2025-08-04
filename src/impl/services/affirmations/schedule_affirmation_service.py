@@ -93,11 +93,13 @@ class ScheduleAffirmationService:
             schedule_config = self._create_schedule_config_dict(self.request.schedule)
             
             # Update affirmation with schedule_config JSON
+            logger.debug(f"Updating affirmation {self.request.affirmation_id} with schedule_config: {schedule_config}")
             updated_affirmation = affirmation_repo.update_affirmation(
                 affirmation_id=self.request.affirmation_id,
                 schedule_config=schedule_config
             )
             
+            logger.debug(f"Updated affirmation schedule_config: {updated_affirmation.schedule_config}")
             self.schedule_config = schedule_config
             logger.debug(f"Successfully scheduled affirmation {self.request.affirmation_id}")
             

@@ -50,11 +50,14 @@ class UnscheduleAffirmationService:
                     detail="Affirmation not found"
                 )
             
+            logger.debug(f"Found affirmation: {affirmation.id}, schedule_config type: {type(affirmation.schedule_config)}")
+            
             # Verify ownership
             self._verify_ownership(affirmation, self.request.user_id)
             
             # Check if affirmation is scheduled
-            if not affirmation.schedule_config:
+            logger.debug(f"Current schedule_config: {affirmation.schedule_config}")
+            if not affirmation.schedule_config or affirmation.schedule_config == {}:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail="Affirmation is not scheduled"

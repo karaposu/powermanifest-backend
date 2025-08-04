@@ -427,7 +427,7 @@ async def unschedule_affirmation(
         
         # Import and use the service
         from impl.services.affirmations.unschedule_affirmation_service import UnscheduleAffirmationService
-        UnscheduleAffirmationService(
+        service = UnscheduleAffirmationService(
             request=request,
             dependencies=services
         )

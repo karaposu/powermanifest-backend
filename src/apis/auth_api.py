@@ -199,6 +199,40 @@ async def auth_login_post(
 
 
 @router.post(
+    "/auth/login-json",
+    responses={
+        200: {"model": AuthLoginPost200Response, "description": "Successful login"},
+        401: {"model": ErrorResponse, "description": "Unauthorized. Authentication credentials are missing or invalid."},
+    },
+    tags=["auth"],
+    summary="Log in a user with JSON body",
+    response_model_by_alias=True,
+)
+async def auth_login_json_post(
+    login_request: LoginRequest = Body(None, description="Login credentials"),
+    services: Services = Depends(get_services),
+) -> AuthLoginPost200Response:
+    """Authenticate user with JSON body instead of form data"""
+    try:
+        logger.debug("auth_login_json_post is called")
+        logger.debug(f"incoming data: email={login_request.email}")
+        
+        # Create request object with compatible interface
+        class MyRequest:
+            def __init__(self):
+                self.email = login_request.email
+                self.password = login_request.password.get_secret_value() if hasattr(login_request.password, 'get_secret_value') else login_request.password
+        
+        mr = MyRequest()
+        service = LoginService(mr, dependencies=services)
+        return service.response
+
+    except Exception as e:
+        logger.error(f"Error processing login: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
+
+
+@router.post(
     "/auth/logout",
     responses={
         200: {"model": AuthLogoutPost200Response, "description": "Successful logout"},
