@@ -72,13 +72,22 @@ class MyLLMService(BaseLLMService):
         Returns:
             GenerationResult containing the generated affirmations
         """
+        # Handle empty context
+        if context and context.strip():
+            context_line = f' based on the following context:\n\nContext: {context}'
+            context_requirement = 'Make them specific to the given context'
+        else:
+            context_line = ''
+            context_requirement = 'Make them general and universally applicable'
+            
         category_line = f'Category: {category}' if category else ''
         style_line = f'Style: {style}' if style else ''
         uslub_line = f'Tone: {uslub}' if uslub else ''
         
         user_prompt = prompts.GENERATE_AFFIRMATIONS_PROMPT.format(
             count=count,
-            context=context,
+            context_line=context_line,
+            context_requirement=context_requirement,
             category_line=category_line,
             style_line=style_line,
             uslub_line=uslub_line

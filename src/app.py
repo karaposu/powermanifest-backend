@@ -43,6 +43,7 @@ from apis.info_api import router as InfoApiRouter
 from apis.auth_api import router as AuthApiRouter
 from apis.affirmations_api import router as AffirmationsApiRouter
 from apis.journal_api import router as JournalApiRouter
+from apis.onboarding_api import router as OnboardingApiRouter
 
 
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -78,7 +79,8 @@ origins = [
     "http://localhost:8080",
     "http://localhost:5174",
     "http://localhost:3000",
-     "http://localhost:443",
+    "http://localhost:443",
+    "https://powermanifest.vercel.app/"
 
 ]
 
@@ -99,6 +101,21 @@ class RequestIDMiddleware(BaseHTTPMiddleware):
         response.headers["X-Request-ID"] = request_id
         return response
 
+class RequestLoggingMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        # Log incoming request details
+        logger.debug(f"=== Incoming Request ===")
+        logger.debug(f"Method: {request.method}")
+        logger.debug(f"URL: {request.url}")
+        logger.debug(f"Headers: {dict(request.headers)}")
+        logger.debug(f"Authorization: {request.headers.get('authorization', 'NOT PROVIDED')}")
+        
+        # Call the next middleware/endpoint
+        response = await call_next(request)
+        
+        logger.debug(f"Response status: {response.status_code}")
+        return response
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins , # Adjust this to more specific domains for security
@@ -109,6 +126,7 @@ app.add_middleware(
 )
 
 app.add_middleware(RequestIDMiddleware)
+app.add_middleware(RequestLoggingMiddleware)
 
 
 
@@ -119,8 +137,10 @@ app.include_router(MessageApiRouter)
 app.include_router(InfoApiRouter)
 app.include_router(AffirmationsApiRouter)
 app.include_router(JournalApiRouter)
+app.include_router(OnboardingApiRouter)
 
-# app.include_router(DependenciesApiRouter)
+
+
 
 services = setup_dependencies()
 

@@ -117,22 +117,21 @@ Here is the chat_history:
 Here is last user message:
 {{user_msg}}
 
-Now, respond as PowerManifest, staying true to your identity and coaching approach outlined above. Remember to be warm, empowering, and action-oriented in your response."""
+Now, respond as PowerManifest, staying true to your identity and coaching approach outlined above. Remember to be warm, empowering, and action-oriented in your response.
+make sure dont output too long messgaes, use extra paragraphs for clear readibility, DO NOT USE Markdown formatting!"""
 
 
 
 
 
-GENERATE_AFFIRMATIONS_PROMPT = """Generate {count} positive affirmations based on the following context:
-            
-Context: {context}
+GENERATE_AFFIRMATIONS_PROMPT = """Generate {count} positive affirmations{context_line}
 {category_line}
 {style_line}
 {uslub_line}
 
 Requirements:
 1. Create powerful, personal affirmations in first person (I am, I have, I can)
-2. Make them specific to the given context
+2. {context_requirement}
 3. Keep them concise and memorable
 4. Make them positive and present-tense
 5. If style is provided, match that style (e.g., motivational = energetic and action-oriented)

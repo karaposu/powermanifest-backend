@@ -70,10 +70,10 @@ class AiCreateAffirmationsService:
             finally:
                 session.close()
         else:
-            # Use provided context
-            if not hasattr(self.request, 'context_corpus') or not self.request.context_corpus.strip():
-                raise HTTPException(status_code=400, detail="Context is required for AI affirmation generation")
-            context = self.request.context_corpus.strip()
+            # Use provided context or empty string if not provided
+            context = ""
+            if hasattr(self.request, 'context_corpus') and self.request.context_corpus:
+                context = self.request.context_corpus.strip()
             self.journal_id = None
         
         try:

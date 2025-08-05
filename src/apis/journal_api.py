@@ -83,10 +83,24 @@ async def create_journal_entry(
         get_token_bearerAuth
     ),
     services: Services = Depends(get_services),
+    request: Request = None,
 ) -> JournalEntry:
     """Create a new journal entry"""
     try:
-        logger.debug("create_journal_entry is called")
+        logger.debug("------create_journal_entry is called")
+        
+        # Log all incoming data
+        if request:
+            logger.debug(f"Request headers: {dict(request.headers)}")
+            logger.debug(f"Authorization header: {request.headers.get('authorization', 'NOT PROVIDED')}")
+        
+        logger.debug(f"Token info: {token_bearerAuth if token_bearerAuth else 'NO TOKEN'}")
+        if token_bearerAuth:
+            logger.debug(f"Token sub (user_id): {token_bearerAuth.sub}")
+            logger.debug(f"Token exp: {getattr(token_bearerAuth, 'exp', 'No exp')}")
+        
+        logger.debug(f"Request body: {create_journal_entry_request}")
+        
         from impl.services.journal_service import JournalService
         journal_service = JournalService(dependencies=services)
         
