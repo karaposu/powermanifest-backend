@@ -67,16 +67,18 @@ class ChatBackend:
         """Return the last *n* messages as a formatted string for the LLM."""
         return self.compile_chat_messages_to_string(self.bring_last_n_messages(n=n))
 
-    def produce_ai_response(self, *, history_count: int = 4) -> str:
-        """Generate and store an assistant reply using the configured LLM service."""
+    def produce_ai_response(self, *, history_count: int = 4) -> tuple[str, dict]:
+        """Generate and store an assistant reply using the configured LLM service.
+        
+        Returns:
+            tuple: (ai_text, usage_data) where usage_data is None if not available
+        """
         if not self.last_message or self.last_message.user_type.lower() != "user":
-            return "I don’t know"
+            return "I don't know", None
 
         history = self.generate_chat_history(n=history_count)
 
-
         print("history:", history) 
-
 
         generation_response = self.llm.generate_ai_answer(
             chat_history=history,
@@ -84,14 +86,17 @@ class ChatBackend:
             # system_prompt=self.system_prompt,
         )
 
+        
+        # print("generaion success:", generation_response.success) 
 
-        print("generaion success:", generation_response.success) 
-
-        print("content:", generation_response.content) 
+        # print("content:", generation_response.content) 
 
         ai_text = (
             generation_response.content if getattr(generation_response, "success", False) else "unknown error"
         )
+
+        # Extract usage data if available
+        usage_data = getattr(generation_response, 'usage', None)
 
         # Persist assistant reply
         self.add_message(
@@ -101,7 +106,7 @@ class ChatBackend:
             message=ai_text,
             message_type="text",
         )
-        return ai_text
+        return ai_text, usage_data
 
     # ------------------------------------------------------------------ #
     # Core storage methods

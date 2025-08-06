@@ -107,8 +107,8 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         logger.debug(f"=== Incoming Request ===")
         logger.debug(f"Method: {request.method}")
         logger.debug(f"URL: {request.url}")
-        logger.debug(f"Headers: {dict(request.headers)}")
-        logger.debug(f"Authorization: {request.headers.get('authorization', 'NOT PROVIDED')}")
+        # logger.debug(f"Headers: {dict(request.headers)}")  # Commented out verbose headers
+        # logger.debug(f"Authorization: {request.headers.get('authorization', 'NOT PROVIDED')}")
         
         # Call the next middleware/endpoint
         response = await call_next(request)

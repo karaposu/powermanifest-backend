@@ -10,10 +10,11 @@ from .chat import Chat
 from .message import Message
 from .affirmation import Affirmation
 from .journal import JournalEntry
+from .llm_operations import LlmOperations
 
 
 __all__ = [
     'Base', 'get_current_time', 'User', 'UserDetails', 'LoginTimeLog',
-    'Chat', 'Message', 'Affirmation', 'JournalEntry'
+    'Chat', 'Message', 'Affirmation', 'JournalEntry', 'LlmOperations'
 
 ]

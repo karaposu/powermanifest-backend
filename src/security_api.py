@@ -43,20 +43,20 @@ def get_token_bearerAuth(credentials: HTTPAuthorizationCredentials = Depends(bea
     :return: Decoded token information or None if token is invalid
     :rtype: TokenModel | None
     """
-    logger.debug("get_token_bearerAuth called")
+    # logger.debug("get_token_bearerAuth called")
     
     if not credentials:
         logger.error("No credentials provided")
         raise HTTPException(status_code=403, detail="No authorization header")
     
     try:
-        logger.debug(f"Credentials scheme: {credentials.scheme}")
-        logger.debug(f"Attempting to decode token: {credentials.credentials[:20] if credentials.credentials else 'NO TOKEN'}...")
-        logger.debug(f"Using SECRET_KEY: {SECRET_KEY[:10] if SECRET_KEY else 'NO SECRET'}...")
+        # logger.debug(f"Credentials scheme: {credentials.scheme}")
+        # logger.debug(f"Attempting to decode token: {credentials.credentials[:20] if credentials.credentials else 'NO TOKEN'}...")
+        # logger.debug(f"Using SECRET_KEY: {SECRET_KEY[:10] if SECRET_KEY else 'NO SECRET'}...")
         
         payload = jwt.decode(credentials.credentials, SECRET_KEY, algorithms=["HS256"])
         user_id = payload.get("sub")
-        logger.debug(f"Decoded payload: {payload}")
+        # logger.debug(f"Decoded payload: {payload}")
         
         if user_id is None:
             logger.error("No 'sub' field in token payload")

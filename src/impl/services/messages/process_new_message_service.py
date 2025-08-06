@@ -101,7 +101,17 @@ class ProcessNewMessageService:
                 )
 
             # 5 ─ Generate assistant reply
-            ai_text = backend.produce_ai_response(history_count=self.history_size)
+            ai_text, usage_data = backend.produce_ai_response(history_count=self.history_size)
+            
+            # Save LLM usage data if available
+            if usage_data:
+                from db.models.llm_operations import LlmOperations
+                llm_operation = LlmOperations(
+                    user_id=self.user_id,
+                    operation_type='chat_message',
+                    usage_data=usage_data
+                )
+                session.add(llm_operation)
 
             # 6 ─ Persist assistant message
             ai_msg_row: Message = msg_repo.insert_message(
