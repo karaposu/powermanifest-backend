@@ -1,5 +1,6 @@
 # PowerManifest - Features Overview
 
+
 ## 🌟 App Overview
 
 PowerManifest is an AI-powered life coaching app designed to help users manifest their goals through awareness, intention, and advanced AI interaction. Built with a voice-first approach and inspired by the teachings of Neville Goddard, the app combines spiritual wisdom with modern technology to create a unique personal development experience.
